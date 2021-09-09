@@ -1,13 +1,15 @@
+import traceback
 from threading import Thread, Event
 from queue import Queue, Empty
 from cache import SimpleCache
 from asyncio import Future
 import asyncio
 import logging
+from async_http import HTTPCli
 log = logging.getLogger(__name__)
 
 from rdap import RDAPCli
-from geo import GeoPlugin
+from geo import IpApi as GeoAPI
 
 class InfoServer:
     def __init__(self, cache=None):
@@ -28,17 +30,38 @@ class InfoServer:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         async def cmdloop():
-            self.rdap = RDAPCli()
-            self.geo = GeoPlugin()
+            self.cli = HTTPCli()
+            self.rdap = RDAPCli(cli = self.cli)
+            self.geo = GeoAPI(cli = self.cli)
             while not self._shutdown_requested:
                 log.debug('waiting for input')
-                cmd = self.input.get()
-                log.debug(f'got command {cmd.__class__.__name__}')
-                await cmd.execute(self)
-                log.debug(f'finished command')
-                await asyncio.sleep(.1)
+                try:
+                    cmd = self.input.get(timeout=.1)
+                except Empty:
+                    pass
+                else:
+                    log.debug(f'got command {cmd.__class__.__name__}')
+                    await cmd.execute(self)
+                    log.debug(f'finished command')
+                if len(self.tasks) > 0:
+                    done, pending = await asyncio.wait(self.tasks, timeout=.1)
+                    for t in done:
+                        try:
+                            await t
+                        except Exception as e:
+                            log.error(f'Error in pending task: {e}')
+                            log.debug(traceback.format_exc())
+                    log.debug(f'After waiting, harvested {len(done)} tasks and have {len(pending)} left')
+                    self.tasks = pending
+            await asyncio.sleep(1)
+            for t in asyncio.all_tasks():
+                t.cancel()
+                try:
+                    await t
+                except:
+                    pass
         loop.run_until_complete(cmdloop())
-        loop.stop()
+        #loop.stop()
     def listIPs(self):
         return self.cache.list()
     async def add(self, ip, priority=20):
@@ -72,6 +95,7 @@ class InfoServer:
         self._shutdown_requested = True
         for t in self.tasks:
             t.cancel()
+        await self.cli.shutdown()
         await self.sync()
 
 class Result:
@@ -104,7 +128,7 @@ class Marshal:
                     res.setResult(rtn)
                     return rtn
                 except Empty:
-                    log.debug('waiting on output from command {res.cmd.__class__.__name__}')
+                    log.debug(f'waiting on output from command {res.cmd.__class__.__name__}')
         t = Thread(target=setResult, args=[res, self.backend.output])
         t.start()
         #asyncio.create_task(asyncio.to_thread(setResult))
