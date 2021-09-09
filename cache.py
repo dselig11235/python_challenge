@@ -1,17 +1,24 @@
 from datetime import timedelta, datetime
 from logging import debug, info, warning, error, exception
+from abc import ABC, abstractmethod
 
 # Base cache class
-class Cache:
+class Cache(ABC):
     '''Base cache class'''
     def __init__(self, ttl=timedelta(days=1)):
         self.ttl = ttl
+    @abstractmethod
     def lookup(self, key):
-        raise Exception("lookup function not implemented in class self.__class__.__name__")
+        raise NotImplemented("lookup function not implemented in class self.__class__.__name__")
+    @abstractmethod
     def add(self, key, val):
-        raise Exception("add function not implemented in class self.__class__.__name__")
+        raise NotImplemented("add function not implemented in class self.__class__.__name__")
+    @abstractmethod
     def remove(self, key):
-        raise Exception("remove function not implemented in class self.__class__.__name__")
+        raise NotImplemented("remove function not implemented in class self.__class__.__name__")
+    @abstractmethod
+    def list(self):
+        raise NotImplemented("list function not implemented in class self.__class__.__name__")
 
 class NoCache(Cache):
     '''Dummy class providing no caching'''
@@ -19,8 +26,10 @@ class NoCache(Cache):
         return None
     def add(self, key, val):
         pass
-    def remove(self, key, val):
+    def remove(self, key):
         pass
+    def list(self):
+        return []
 
 class SimpleCache(Cache):
     '''Very simple cache using an in-memory Python dict. Should be fine for small sets'''
@@ -40,5 +49,5 @@ class SimpleCache(Cache):
         self.cache[key] = {'val': val, 'expires': datetime.now()+self.ttl}
     def remove(self, key):
         del self.cache[key]
-
-
+    def list(self):
+        return self.cache.keys()
