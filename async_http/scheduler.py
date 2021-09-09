@@ -1,8 +1,9 @@
-from logging import debug, info, warning, error, exception
 from asyncio import PriorityQueue, Semaphore, Future
 import asyncio
 import urllib3
 from functools import total_ordering
+import logging
+log = logging.getLogger(__name__)
 
 @total_ordering
 class PriorityRequest:
@@ -39,23 +40,23 @@ class HTTPScheduler:
         await self.run_queue.put(req)
         def semReleaser(sem):
             def release(fut):
-                debug('Releasing HTTP scheduling semaphore')
+                log.debug('Releasing HTTP scheduling semaphore')
                 sem.release()
             return release
         req.future.add_done_callback(semReleaser(self.sem))
         return req.future
     async def start(self):
         while(True):
-            debug('scheduler waiting on semaphore')
+            log.debug('scheduler waiting on semaphore')
             await self.sem.acquire()
-            debug('scheduler acquired semaphore')
+            log.debug('scheduler acquired semaphore')
             job = await self.run_queue.get()
             if job:
                 asyncio.create_task(job.start())
             else:
-                info('HTTPScheduler shutting down')
+                log.info('HTTPScheduler shutting down')
                 break
     async def shutdown(self):
-        debug('Sending shutdown')
+        log.debug('Sending shutdown')
         req = PriorityRequest(-20, None, None)
         await self.run_queue.put(req)

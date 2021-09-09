@@ -1,7 +1,8 @@
 from .scheduler import HTTPScheduler
 from cache import SimpleCache
-from logging import debug, info, warning, error, exception
 import asyncio
+import logging
+log = logging.getLogger(__name__)
 
 class HTTPCli:
     # Instantiating HTTPScheduler as a default argument here throws an error
