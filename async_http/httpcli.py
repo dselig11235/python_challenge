@@ -1,26 +1,24 @@
 from .scheduler import HTTPScheduler
-from .cache import SimpleCache
+from cache import SimpleCache
+from logging import debug, info, warning, error, exception
 import asyncio
 
 class HTTPCli:
-    def __init__(self, scheduler=None, cache=SimpleCache()):
+    # Instantiating HTTPScheduler as a default argument here throws an error
+    # since it relies on the asyncio loop which hasn't been started yet
+    def __init__(self, scheduler=None, cache=None):
         if scheduler is None:
             self.scheduler = HTTPScheduler(16)
         else:
             self.scheduler = scheduler
-        self.cache = cache
-    async def get(self, url):
+        if cache is None:
+            self.cache=SimpleCache()
+        else:
+            self.cache = cache
+    async def get(self, url, priority=0):
         response = self.cache.lookup(url)
         if response is None:
-            fut = await self.scheduler.submit(0, url)
+            fut = await self.scheduler.submit(priority, url)
             response = await fut
             self.cache.add(url, response)
         return response
-    def precache(self, urls):
-        asyncio.create_task(self._precache(urls))
-    async def _precache(self, urls):
-        stale = [url for url in urls if self.cache.lookup(url) is None]
-        futs = []
-        for url in stale:
-            futs.append(await self.scheduler.submit(20, url))
-        return asyncio.gather(*futs)
