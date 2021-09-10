@@ -75,7 +75,8 @@ class IPLookup(Cmd):
         self.do_EOF = self.do_exit
     def preloop(self):
         '''Set up backend thread and marshaller'''
-        self.marshaller = Marshal(InfoServer())
+        self.marshaller = Marshal(InfoServer(cache=lambda: SQLiteCache('.cache-ipinfo.sqlite3')))
+        #self.marshaller = Marshal(InfoServer())
     def emptyline(self):
         pass
     @exceptionHandled
