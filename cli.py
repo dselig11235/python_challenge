@@ -64,10 +64,15 @@ def exceptionHandled(fn):
         except Exception as e:
             log.error(f'Exception in {fn.__name__}: {e}')
             log.debug(traceback.format_exc())
+    # Need docstrings for help pages in cli
+    wrapped.__doc__ = fn.__doc__
     return wrapped
 
 class IPLookup(Cmd):
     prompt = '> '
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.do_EOF = self.do_exit
     def preloop(self):
         '''Set up backend thread and marshaller'''
         self.marshaller = Marshal()
@@ -111,12 +116,9 @@ class IPLookup(Cmd):
         '''Try to abort any pending requests and shut everything down'''
         self.marshaller.submit(Shutdown()).done.wait()
         return True
-    def do_EOF(self, _):
-        self.do_exit(_)
 
 async def main():
     IPLookup().cmdloop()
 
 if __name__ == '__main__':
-    #asyncio.run(main())
     IPLookup().cmdloop()
