@@ -16,3 +16,5 @@ class RDAPCli:
             return {}
         else:
             return json.loads(resp.data.decode("utf-8"))
+    def shutdown(self):
+        return self.cli.shutdown()

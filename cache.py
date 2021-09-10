@@ -1,5 +1,4 @@
 from datetime import timedelta, datetime
-from logging import debug, info, warning, error, exception
 from abc import ABC, abstractmethod
 
 # Base cache class
