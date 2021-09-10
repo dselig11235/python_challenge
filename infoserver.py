@@ -9,11 +9,12 @@ from async_http import HTTPCli
 log = logging.getLogger(__name__)
 
 from rdap import RDAPCli
-from geo import IpApi as GeoAPI
+from geo import GeoPlugin as GeoAPI
 
 class InfoServer:
     def __init__(self, cache=None):
-        self.cache = SimpleCache() if cache is None else cache
+        #self.cache = SimpleCache() if cache is None else cache
+        self.cache = cache
         self.thread = Thread(target=self.run)
         # Since we'll just have a single client and a single server, simple 
         # Qeues should work just fine
@@ -30,11 +31,14 @@ class InfoServer:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         async def cmdloop():
-            self.cli = HTTPCli()
-            self.rdap = RDAPCli(cli = self.cli)
-            self.geo = GeoAPI(cli = self.cli)
+            if self.cache is None:
+                self.cache = SimpleCache()
+            else:
+                self.cache = self.cache()
+            self.rdap = RDAPCli()
+            self.geo = GeoAPI()
             while not self._shutdown_requested:
-                log.debug('waiting for input')
+                #log.debug('waiting for input')
                 try:
                     cmd = self.input.get(timeout=.1)
                 except Empty:
@@ -51,9 +55,9 @@ class InfoServer:
                         except Exception as e:
                             log.error(f'Error in pending task: {e}')
                             log.debug(traceback.format_exc())
-                    log.debug(f'After waiting, harvested {len(done)} tasks and have {len(pending)} left')
+                    #log.debug(f'After waiting, harvested {len(done)} tasks and have {len(pending)} left')
                     self.tasks = pending
-            await asyncio.sleep(1)
+            #await asyncio.sleep(1)
             for t in asyncio.all_tasks():
                 t.cancel()
                 try:
@@ -95,7 +99,8 @@ class InfoServer:
         self._shutdown_requested = True
         for t in self.tasks:
             t.cancel()
-        await self.cli.shutdown()
+        await self.rdap.shutdown()
+        await self.geo.shutdown()
         await self.sync()
 
 class Result:
@@ -113,8 +118,8 @@ class Result:
         return self.fut.result()
 
 class Marshal:
-    def __init__(self):
-        self.backend = InfoServer()
+    def __init__(self, backend):
+        self.backend = backend
         self.backend.start()
     def submit(self, cmd):
         res = Result(cmd)
