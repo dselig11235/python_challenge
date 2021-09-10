@@ -21,5 +21,8 @@ class HTTPCli:
         if response is None:
             fut = await self.scheduler.submit(priority, url)
             response = await fut
+            #response = await self.scheduler.submit(priority, url)
             self.cache.add(url, response)
         return response
+    async def shutdown(self):
+        await self.scheduler.shutdown()

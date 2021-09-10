@@ -1,7 +1,7 @@
 from cmd import Cmd
 from parser import IPExtractor
 from rdap import RDAPCli
-from infoserver import Marshal
+from infoserver import Marshal, InfoServer
 from commands import *
 import asyncio
 import logging
@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 import traceback
 
-formatter = logging.Formatter('[%(threadName)s]-%(levelname)s:%(message)s')
+formatter = logging.Formatter('%(asctime)s %(levelname)s: [%(threadName)s][%(module)s]%(message)s', "%Y-%m-%d %H:%M:%S")
 stream_handler = logging.StreamHandler()
 stream_handler.setLevel(logging.ERROR)
 stream_handler.setFormatter(formatter)
@@ -64,13 +64,18 @@ def exceptionHandled(fn):
         except Exception as e:
             log.error(f'Exception in {fn.__name__}: {e}')
             log.debug(traceback.format_exc())
+    # Need docstrings for help pages in cli
+    wrapped.__doc__ = fn.__doc__
     return wrapped
 
 class IPLookup(Cmd):
     prompt = '> '
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.do_EOF = self.do_exit
     def preloop(self):
         '''Set up backend thread and marshaller'''
-        self.marshaller = Marshal()
+        self.marshaller = Marshal(InfoServer())
     def emptyline(self):
         pass
     @exceptionHandled
@@ -80,9 +85,19 @@ class IPLookup(Cmd):
             ips = IPExtractor(f.read())
         self.marshaller.submit(Precache(ips))
     def complete_parse(self, text, ln, beg, end):
-        p = Path('.')
-        log.debug(f'possible paths: in {p}*: {list(p.glob(text+"*"))}')
-        return [str(p) for p in p.glob(text+'*')]
+        path = ln.split(maxsplit=1)
+        if len(path) == 1:
+            path = ''
+        else:
+            path = path[1]
+        p = Path(path)
+        if p.is_dir():
+            par=p
+            name=''
+        else:
+            par=p.parent
+            name=p.name
+        return [str(p.name) for p in par.glob(name+'*')]
     @exceptionHandled
     def do_list(self, ip_re):
         '''List IPs that are either pending or already cached. IPs present in
@@ -111,12 +126,6 @@ class IPLookup(Cmd):
         '''Try to abort any pending requests and shut everything down'''
         self.marshaller.submit(Shutdown()).done.wait()
         return True
-    def do_EOF(self, _):
-        self.do_exit(_)
-
-async def main():
-    IPLookup().cmdloop()
 
 if __name__ == '__main__':
-    #asyncio.run(main())
     IPLookup().cmdloop()

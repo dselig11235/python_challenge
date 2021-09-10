@@ -38,6 +38,7 @@ class Sync(IPInfoCmd):
         target.rtn(await target.sync(1))
 
 class Show(IPInfoCmd):
+    '''Lookup an IP and print the combined geocation and rdap information'''
     def __init__(self, ip):
         self.ip = ip
     async def execute(self, target):
@@ -45,6 +46,7 @@ class Show(IPInfoCmd):
         target.rtn(info)
 
 class Shutdown(IPInfoCmd):
+    '''Clean up connections, wait for tasks to complete, and shutdown'''
     async def execute(self, target):
         await target.shutdown()
         target.rtn(None)
