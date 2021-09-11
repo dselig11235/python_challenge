@@ -1,5 +1,7 @@
 from cache import Cache
+from datetime import datetime, timedelta
 import sqlite3
+import atexit
 
 class SQLiteCache(Cache):
     def __init__(self, filename, *args, keytype='text', valtype='json', **kwargs):
@@ -17,6 +19,7 @@ class SQLiteCache(Cache):
         assert(valtype.isalpha())
         self.conn.execute(f"create table if not exists SQLiteCache " +
                 f"(key {keytype} primary key, val {valtype}, expires timestamp);")
+        atexit.register(self.commit)
     def lookup(self, key):
         c = self.conn.cursor()
         c.execute('select val, expires from SQLiteCache where key = ?;', [key])
@@ -38,5 +41,7 @@ class SQLiteCache(Cache):
         self.conn.execute("delete from SQLiteCache where key = ?", [key])
     def list(self):
         c = self.conn.execute("select key from SQLiteCache")
-        yield from c
+        yield from (ip[0] for ip in c)
+    def commit(self):
+        self.conn.commit()
 
