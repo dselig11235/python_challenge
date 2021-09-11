@@ -5,4 +5,4 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 COPY *.py ./
 COPY async_http/*.py async_http/
-ENTRYPOINT python /app/cli.py
+ENTRYPOINT /bin/bash
