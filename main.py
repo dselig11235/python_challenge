@@ -9,6 +9,7 @@ from pathlib import Path
 import traceback
 import json
 from sqlite_cache import SQLiteCache
+from interactive import IPLookup
 
 formatter = logging.Formatter('%(asctime)s %(levelname)s: [%(threadName)s][%(module)s]%(message)s', "%Y-%m-%d %H:%M:%S")
 stream_handler = logging.StreamHandler()
@@ -70,12 +71,17 @@ async def showIP(cache, ip):
     val = await lookup(cache, rdap, geo, ip)
     print(json.dumps(val, indent=4))
 
+async def startInteractive(cache):
+    #FIXME: Threading issues mean we can't pass SQLite caches to the interactive loop
+    return IPLookup().cmdloop()
+
 async def main(command, *args, cachefile='/tmp/.cache.sqlite'):
     cache = SQLiteCache(cachefile)
     command_lu = {
             'parse': parseAndCache,
             'list': listIPs,
-            'show': showIP
+            'show': showIP,
+            'interactive': startInteractive
             }
     return await command_lu[command](cache, *args)
 
